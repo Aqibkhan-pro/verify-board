@@ -23,6 +23,10 @@ export class App {
   protected readonly recordBusy = signal(false);
   protected readonly recordStatus = signal('');
   protected readonly editingRecord = signal<StudentRecord | null>(null);
+  protected readonly verificationUrl = `${window.location.origin}${window.location.pathname}#verification`;
+  protected readonly qrCodeUrl = signal('');
+  protected readonly qrCodeBusy = signal(false);
+  protected readonly qrCodeStatus = signal('');
   protected readonly studentPageSize = 8;
   protected readonly studentPage = signal(1);
   protected readonly studentPageCount = computed(() => Math.max(1, Math.ceil(this.students().length / this.studentPageSize)));
@@ -112,6 +116,36 @@ export class App {
   protected newSearch(event: Event): void { this.openVerification(event); }
   protected downloadResult(): void { window.print(); }
 
+  protected async generateVerificationQr(): Promise<void> {
+    if (this.qrCodeUrl() || this.qrCodeBusy()) return;
+
+    this.qrCodeBusy.set(true);
+    this.qrCodeStatus.set('');
+    try {
+      const QRCode = await import('qrcode');
+      this.qrCodeUrl.set(await QRCode.toDataURL(this.verificationUrl, {
+        width: 640,
+        margin: 2,
+        errorCorrectionLevel: 'M',
+        color: { dark: '#0f4424', light: '#ffffff' }
+      }));
+    } catch {
+      this.qrCodeStatus.set('QR code could not be generated. Please reload the page.');
+    } finally {
+      this.qrCodeBusy.set(false);
+    }
+  }
+
+  protected downloadVerificationQr(): void {
+    const qrCode = this.qrCodeUrl();
+    if (!qrCode) return;
+
+    const download = document.createElement('a');
+    download.href = qrCode;
+    download.download = 'bste-verification-qr.png';
+    download.click();
+  }
+
   protected openAdmin(event: Event): void {
     event.preventDefault();
     this.menuOpen.set(false);
@@ -147,6 +181,7 @@ export class App {
       this.adminAuthorized.set(true);
       this.authStatus.set('Signed in with administrator access.');
       await this.loadStudents();
+      void this.generateVerificationQr();
     } catch (error: unknown) {
       const code = typeof error === 'object' && error && 'code' in error ? String(error.code) : '';
       const messages: Record<string, string> = {
@@ -265,6 +300,7 @@ export class App {
       await ensureAdminProfile(user.uid, user.email);
       this.adminAuthorized.set(true);
       await this.loadStudents();
+      void this.generateVerificationQr();
     } catch {
       this.authStatus.set('Unable to connect to Firebase Authentication.');
     }

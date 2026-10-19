@@ -220,6 +220,24 @@
         </div>
 
         <div class="container dashboard-grid">
+          <section class="verification-qr-card" aria-labelledby="verification-qr-heading">
+            <div>
+              <p class="form-kicker">Public verification link</p>
+              <h2 id="verification-qr-heading">Share credential verification</h2>
+              <p>Visitors can scan this QR code to open the verification page instantly.</p>
+              <span class="qr-link">{{ verificationUrl }}</span>
+            </div>
+            <div class="qr-card-actions">
+              @if (qrCodeUrl()) {
+                <img class="verification-qr-image" [src]="qrCodeUrl()" alt="QR code that opens the BSTE verification page" />
+              } @else {
+                <div class="verification-qr-placeholder" aria-live="polite">{{ qrCodeBusy() ? 'Generating QR…' : 'QR unavailable' }}</div>
+              }
+              <button class="button button-primary" type="button" (click)="downloadVerificationQr()" [disabled]="!qrCodeUrl()">Download QR <span>&darr;</span></button>
+              @if (qrCodeStatus()) { <p class="qr-error">{{ qrCodeStatus() }}</p> }
+            </div>
+          </section>
+
           <section class="record-editor" aria-labelledby="record-editor-heading">
             <p class="form-kicker">{{ editingRecord() ? 'Update student' : 'New student record' }}</p>
             <h2 id="record-editor-heading">{{ editingRecord() ? 'Edit record' : 'Add student record' }}</h2>

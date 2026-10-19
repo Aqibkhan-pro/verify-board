@@ -239,6 +239,16 @@ body {
 .dashboard-heading h2 { margin: 0; color: var(--forest); font: 700 2rem "Plus Jakarta Sans", sans-serif; letter-spacing: -.05em; }
 .dashboard-heading > div > p:last-child { margin: 5px 0 0; color: var(--soft); font-size: .87rem; }
 .dashboard-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, .9fr); align-items: start; gap: 24px; }
+.verification-qr-card { grid-column: 1 / -1; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 32px; padding: 27px 32px; border: 1px solid #d9e9da; border-radius: 16px; background: linear-gradient(120deg, #edf7ed, #fff 72%); box-shadow: 0 10px 32px rgba(23,50,29,.06); }
+.verification-qr-card h2 { margin: 7px 0; color: var(--forest); font: 700 1.55rem "Plus Jakarta Sans", sans-serif; letter-spacing: -.04em; }
+.verification-qr-card p:not(.form-kicker) { max-width: 510px; margin: 0; color: var(--soft); font-size: .91rem; }
+.qr-link { display: block; max-width: 520px; margin-top: 14px; overflow: hidden; color: var(--dark); font-size: .75rem; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
+.qr-card-actions { display: grid; justify-items: center; gap: 10px; }
+.verification-qr-image, .verification-qr-placeholder { box-sizing: border-box; width: 142px; height: 142px; padding: 7px; border: 1px solid #cde0cf; border-radius: 9px; background: #fff; }
+.verification-qr-placeholder { display: grid; place-items: center; color: var(--soft); font-size: .74rem; font-weight: 700; text-align: center; }
+.qr-card-actions .button { min-width: 142px; padding: 10px 12px; font-size: .78rem; }
+.qr-card-actions .button:disabled { cursor: wait; opacity: .65; transform: none; }
+.qr-error { max-width: 172px; margin: 0; color: #a62f25; font-size: .72rem; text-align: center; }
 .record-editor, .record-directory { padding: 32px; border-radius: 16px; background: var(--white); box-shadow: 0 10px 38px rgba(23,50,29,.09); }
 .record-editor h2, .record-directory h2 { margin: 8px 0 5px; color: var(--forest); font: 700 1.5rem "Plus Jakarta Sans", sans-serif; letter-spacing: -.04em; }
 .record-form { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
@@ -288,6 +298,7 @@ body {
   .record-grid { grid-template-columns: 1fr; }
   .auth-layout { grid-template-columns: 1fr; gap: 18px; max-width: 650px; }
   .dashboard-grid { grid-template-columns: 1fr; max-width: 760px; }
+  .verification-qr-card { grid-template-columns: 1fr auto; }
   .auth-intro { padding-top: 0; }
   .main-nav { overflow: auto; }
   .nav-inner { width: max-content; margin-inline: 24px; }
@@ -338,6 +349,8 @@ body {
   .auth-section { padding: 36px 0 60px; }
   .auth-card { padding: 27px; }
   .dashboard-heading { align-items: start; flex-direction: column; margin-bottom: 20px; }
+  .verification-qr-card { grid-template-columns: 1fr; gap: 22px; padding: 24px; }
+  .qr-card-actions { justify-items: start; }
   .record-editor, .record-directory { padding: 24px; }
   .record-form { grid-template-columns: 1fr; }
   .wide-field, .record-message, .record-form-actions { grid-column: auto; }
