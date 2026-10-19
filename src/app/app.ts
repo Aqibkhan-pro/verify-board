@@ -159,7 +159,7 @@ export class App {
 
     const download = document.createElement('a');
     download.href = qrCode;
-    download.download = 'bste-verification-qr.png';
+    download.download = 'ttbp-verification-qr.png';
     download.click();
   }
 
