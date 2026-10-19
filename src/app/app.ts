@@ -70,6 +70,10 @@ export class App {
 
       if (window.location.hash === '#admin') void this.loadAdminSession();
     });
+
+    // A browser refresh does not emit hashchange, so restore the persisted
+    // Firebase session when the Login page is the initial route.
+    if (this.adminPage()) void this.loadAdminSession();
   }
 
   protected toggleMenu(): void { this.menuOpen.update(open => !open); }
@@ -122,8 +126,21 @@ export class App {
     this.qrCodeBusy.set(true);
     this.qrCodeStatus.set('');
     try {
-      const QRCode = await import('qrcode');
-      this.qrCodeUrl.set(await QRCode.toDataURL(this.verificationUrl, {
+      // The QR library is CommonJS. Depending on the production bundler, its
+      // browser API can be exposed directly or under `default`.
+      type QrCodeApi = {
+        toDataURL: (text: string, options: {
+          width: number;
+          margin: number;
+          errorCorrectionLevel: 'M';
+          color: { dark: string; light: string };
+        }) => Promise<string>;
+      };
+      const qrModule = await import('qrcode') as unknown as Partial<QrCodeApi> & { default?: QrCodeApi };
+      const toDataURL = qrModule.toDataURL ?? qrModule.default?.toDataURL;
+      if (!toDataURL) throw new Error('QR generator is unavailable.');
+
+      this.qrCodeUrl.set(await toDataURL(this.verificationUrl, {
         width: 640,
         margin: 2,
         errorCorrectionLevel: 'M',
