@@ -1,0 +1,33 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    // The owner has requested that every authenticated account be an admin.
+    function isAdmin() {
+      return signedIn()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    match /students/{studentId} {
+      // Verification can fetch a known roll-number/year record, but public
+      // callers cannot enumerate the complete collection.
+      allow get: if true;
+
+      allow list, create, update, delete: if isAdmin();
+    }
+
+    match /users/{userId} {
+      allow get: if signedIn() && request.auth.uid == userId;
+      // A signed-in user may only create or maintain their own admin profile.
+      allow create, update: if signedIn()
+        && request.auth.uid == userId
+        && request.resource.data.role == 'admin';
+      allow delete: if false;
+    }
+  }
+}
