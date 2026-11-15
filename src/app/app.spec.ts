@@ -14,10 +14,10 @@ describe('App', () => {
     expect(app).toBeTruthy();
   });
 
-  it('should render the Trade Testing Board Pakistan homepage heading', async () => {
+  it('should render the Vocational and Technical Skills Council homepage heading', async () => {
     const fixture = TestBed.createComponent(App);
     await fixture.whenStable();
     const compiled = fixture.nativeElement as HTMLElement;
-    expect(compiled.querySelector('h1')?.textContent).toContain('Trade Testing Board Pakistan');
+    expect(compiled.querySelector('h1')?.textContent).toContain('Vocational and Technical Skills Council');
   });
 });

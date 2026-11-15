@@ -159,7 +159,7 @@ export class App {
 
     const download = document.createElement('a');
     download.href = qrCode;
-    download.download = 'ttbp-verification-qr.png';
+    download.download = 'vtsc-verification-qr.png';
     download.click();
   }
 
