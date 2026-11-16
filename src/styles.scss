@@ -253,8 +253,8 @@ body {
 .record-editor h2, .record-directory h2 { margin: 8px 0 5px; color: var(--forest); font: 700 1.5rem "Plus Jakarta Sans", sans-serif; letter-spacing: -.04em; }
 .record-form { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
 .record-form label { color: #2b4a31; font-size: .8rem; font-weight: 700; }
-.record-form input { display: block; width: 100%; margin-top: 6px; padding: 11px 12px; border: 1px solid #c9dccb; border-radius: 7px; outline: none; background: #fff; color: var(--ink); font: 500 .93rem "DM Sans", sans-serif; }
-.record-form input:focus { border-color: var(--green); box-shadow: 0 0 0 3px rgba(54,125,57,.12); }
+.record-form input, .record-form select { display: block; width: 100%; margin-top: 6px; padding: 11px 12px; border: 1px solid #c9dccb; border-radius: 7px; outline: none; background: #fff; color: var(--ink); font: 500 .93rem "DM Sans", sans-serif; }
+.record-form input:focus, .record-form select:focus { border-color: var(--green); box-shadow: 0 0 0 3px rgba(54,125,57,.12); }
 .wide-field, .record-message, .record-form-actions { grid-column: 1 / -1; }
 .record-message { min-height: 1.3em; margin: 1px 0 -1px; color: #a62f25; font-size: .83rem; }
 .record-form-actions { display: flex; align-items: center; gap: 10px; }
@@ -412,3 +412,16 @@ body {
   .skills-banner-copy p { font-size: 10px; margin-top: 4px; }
 }
 @media print { .skills-banner { display: none; } }
+
+.institute-manager { grid-column: 1 / -1; }
+.delete-modal { width: min(440px, calc(100% - 32px)); margin: auto; padding: 28px; border: 0; border-radius: 18px; color: var(--ink); background: #fff; box-shadow: 0 24px 80px #0003; }
+.delete-modal::backdrop { background: #10261dcc; backdrop-filter: blur(4px); }
+.delete-modal-icon { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 50%; background: #fff0ee; color: #b42318; font-size: 25px; font-weight: 700; }
+.delete-modal h2 { margin: 18px 0 10px; font-size: 1.4rem; }
+.delete-modal p { line-height: 1.6; overflow-wrap: anywhere; color: var(--soft); }
+.delete-modal-actions { display: flex; justify-content: flex-end; gap: 12px; margin-top: 24px; }
+.delete-modal-confirm { color: #fff; background: #b42318; border: 1px solid #b42318; }
+.delete-modal-confirm:hover { background: #912018; }
+.delete-modal button:disabled { opacity: .6; cursor: wait; }
+.delete-modal .delete-modal-error { color: #b42318; }
+.institute-manager .record-list { max-height: 320px; overflow-y: auto; }

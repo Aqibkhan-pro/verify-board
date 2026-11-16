@@ -23,6 +23,8 @@ export interface StudentRecord {
   totalMarks: number;
   obtainedMarks: number;
   percentage: number;
+  instituteId?: string;
+  instituteName?: string;
 }
 
 export type StudentRecordInput = Omit<StudentRecord, 'id' | 'percentage'>;
@@ -67,6 +69,8 @@ function toRecord(id: string, data: Record<string, unknown>): StudentRecord {
     programme: String(data['programme'] ?? ''),
     session: String(data['session'] ?? ''),
     grade: String(data['grade'] ?? ''),
+    instituteId: String(data['instituteId'] ?? ''),
+    instituteName: String(data['instituteName'] ?? ''),
     totalMarks,
     obtainedMarks,
     percentage
@@ -98,4 +102,29 @@ export async function saveStudentRecord(input: StudentRecordInput): Promise<Stud
 
 export async function deleteStudentRecord(id: string): Promise<void> {
   await deleteDoc(doc(students, id));
+}
+
+export interface AffiliatedInstitute {
+  id: string;
+  name: string;
+}
+
+const institutes = collection(firestore, 'affiliatedInstitutes');
+
+export async function listInstitutes(): Promise<AffiliatedInstitute[]> {
+  const snapshot = await getDocs(institutes);
+  return snapshot.docs.map(item => ({ id: item.id, name: String(item.data()['name'] ?? '') }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+}
+
+export async function saveInstitute(name: string, id?: string): Promise<AffiliatedInstitute> {
+  const trimmed = name.trim();
+  if (!trimmed || trimmed.length > 200) throw new Error('Invalid institute name');
+  const reference = id ? doc(institutes, id) : doc(institutes);
+  await setDoc(reference, { name: trimmed, updatedAt: serverTimestamp() });
+  return { id: reference.id, name: trimmed };
+}
+
+export async function deleteInstitute(id: string): Promise<void> {
+  await deleteDoc(doc(institutes, id));
 }

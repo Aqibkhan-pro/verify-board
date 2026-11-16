@@ -1,12 +1,55 @@
-import { Component, computed, signal } from '@angular/core';
-import type { StudentRecord, StudentRecordInput } from './student-records';
+import { Component, computed, signal, ElementRef, viewChild } from '@angular/core';
+import { FormsModule } from '@angular/forms';
+import type { AffiliatedInstitute, StudentRecord, StudentRecordInput } from './student-records';
 
 @Component({
   selector: 'app-root',
-  imports: [],
+  imports: [FormsModule],
   templateUrl: './app.html'
 })
 export class App {
+  private readonly deleteDialog = viewChild<ElementRef<HTMLDialogElement>>('deleteDialog');
+  protected readonly pendingDelete = signal<{ kind: 'student'; record: StudentRecord } | { kind: 'institute'; record: AffiliatedInstitute } | null>(null);
+  protected readonly deleteBusy = signal(false);
+  protected readonly deleteError = signal('');
+
+  protected removeStudent(record: StudentRecord): void {
+    this.openDeleteModal({ kind: 'student', record });
+  }
+
+  protected removeInstitute(record: AffiliatedInstitute): void {
+    this.openDeleteModal({ kind: 'institute', record });
+  }
+
+  private openDeleteModal(target: NonNullable<ReturnType<typeof this.pendingDelete>>): void {
+    if (this.deleteBusy() || this.recordBusy() || this.instituteBusy()) return;
+    this.pendingDelete.set(target);
+    this.deleteError.set('');
+    this.deleteDialog()?.nativeElement.showModal();
+  }
+
+  protected cancelDelete(event?: Event): void {
+    event?.preventDefault();
+    if (this.deleteBusy()) return;
+    this.deleteDialog()?.nativeElement.close();
+    this.pendingDelete.set(null);
+    this.deleteError.set('');
+  }
+
+  protected async confirmDelete(): Promise<void> {
+    const target = this.pendingDelete();
+    if (!target || this.deleteBusy()) return;
+    this.deleteBusy.set(true);
+    this.deleteError.set('');
+    try {
+      if (target.kind === 'student') await this.deleteStudent(target.record);
+      else await this.deleteAffiliatedInstitute(target.record);
+    } finally {
+      this.deleteBusy.set(false);
+    }
+    if (!this.deleteError()) this.cancelDelete();
+  }
+  private recordsApi() { return import('./student-records'); }
   protected readonly menuOpen = signal(false);
   protected readonly verificationPage = signal(window.location.hash === '#verification');
   protected readonly resultPage = signal(window.location.hash === '#result');
@@ -23,6 +66,16 @@ export class App {
   protected readonly recordBusy = signal(false);
   protected readonly recordStatus = signal('');
   protected readonly editingRecord = signal<StudentRecord | null>(null);
+  protected readonly institutes = signal<AffiliatedInstitute[]>([]);
+  protected readonly institutesLoading = signal(false);
+  protected readonly instituteBusy = signal(false);
+  protected readonly instituteStatus = signal('');
+  protected readonly editingInstitute = signal<AffiliatedInstitute | null>(null);
+  protected readonly selectedInstituteId = signal('');
+  protected readonly missingInstitute = computed(() => {
+    const record = this.editingRecord();
+    return record?.instituteId && !this.institutes().some(item => item.id === record.instituteId) ? record : null;
+  });
   protected readonly verificationUrl = `${window.location.origin}${window.location.pathname}#verification`;
   protected readonly qrCodeUrl = signal('');
   protected readonly qrCodeBusy = signal(false);
@@ -104,7 +157,7 @@ export class App {
     this.searchBusy.set(true);
     this.verificationStatus.set('');
     try {
-      const { findStudentRecord } = await import('./student-records');
+      const { findStudentRecord } = await this.recordsApi();
       this.activeRecord.set(await findStudentRecord(rollNo, passingYear));
       this.verificationPage.set(false);
       this.resultPage.set(true);
@@ -192,7 +245,7 @@ export class App {
       ]);
       const credential = await auth.signInWithEmailAndPassword(firebaseAuth(), email.trim(), password);
 
-      const { ensureAdminProfile } = await import('./student-records');
+      const { ensureAdminProfile } = await this.recordsApi();
       await ensureAdminProfile(credential.user.uid, credential.user.email);
       this.signedInEmail.set(credential.user.email ?? email.trim());
       this.adminAuthorized.set(true);
@@ -220,12 +273,16 @@ export class App {
     this.signedInEmail.set('');
     this.adminAuthorized.set(false);
     this.students.set([]);
+    this.institutes.set([]);
+    this.editingInstitute.set(null);
+    this.selectedInstituteId.set('');
     this.editingRecord.set(null);
     this.authStatus.set('You have been signed out.');
   }
 
   protected async saveStudent(event: SubmitEvent): Promise<void> {
     event.preventDefault();
+    if (this.recordBusy()) return;
     const form = event.currentTarget as HTMLFormElement;
     const values = new FormData(form);
     const value = (field: string) => String(values.get(field) ?? '').trim();
@@ -238,6 +295,9 @@ export class App {
       programme: value('programme'),
       session: value('session'),
       grade: value('grade'),
+      instituteId: this.selectedInstituteId(),
+      instituteName: this.institutes().find(item => item.id === this.selectedInstituteId())?.name
+        ?? (this.selectedInstituteId() === this.editingRecord()?.instituteId ? this.editingRecord()?.instituteName ?? '' : ''),
       totalMarks: Number(value('totalMarks')),
       obtainedMarks: Number(value('obtainedMarks'))
     };
@@ -250,11 +310,12 @@ export class App {
     this.recordBusy.set(true);
     this.recordStatus.set('');
     try {
-      const { deleteStudentRecord, saveStudentRecord } = await import('./student-records');
+      const { deleteStudentRecord, saveStudentRecord } = await this.recordsApi();
       const previous = this.editingRecord();
       const saved = await saveStudentRecord(input);
       if (previous && previous.id !== saved.id) await deleteStudentRecord(previous.id);
       this.editingRecord.set(null);
+      this.selectedInstituteId.set('');
       form.reset();
       this.recordStatus.set(previous ? 'Student record updated.' : 'Student record saved.');
       await this.loadStudents();
@@ -267,12 +328,14 @@ export class App {
 
   protected editStudent(record: StudentRecord): void {
     this.editingRecord.set(record);
+    this.selectedInstituteId.set(record.instituteId ?? '');
     this.recordStatus.set('Editing selected record.');
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
   protected cancelEdit(): void {
     this.editingRecord.set(null);
+    this.selectedInstituteId.set('');
     this.recordStatus.set('Edit cancelled.');
   }
 
@@ -280,17 +343,17 @@ export class App {
     this.studentPage.set(Math.min(Math.max(1, page), this.studentPageCount()));
   }
 
-  protected async removeStudent(record: StudentRecord): Promise<void> {
-    if (!window.confirm(`Delete the record for ${record.name}?`)) return;
+  private async deleteStudent(record: StudentRecord): Promise<void> {
 
     this.recordBusy.set(true);
     try {
-      const { deleteStudentRecord } = await import('./student-records');
+      const { deleteStudentRecord } = await this.recordsApi();
       await deleteStudentRecord(record.id);
       if (this.editingRecord()?.id === record.id) this.editingRecord.set(null);
       this.recordStatus.set('Student record deleted.');
       await this.loadStudents();
     } catch {
+      this.deleteError.set('Unable to delete this student. Please try again.');
       this.recordStatus.set('Unable to delete. Confirm that this account has admin access.');
     } finally {
       this.recordBusy.set(false);
@@ -313,7 +376,7 @@ export class App {
         return;
       }
 
-      const { ensureAdminProfile } = await import('./student-records');
+      const { ensureAdminProfile } = await this.recordsApi();
       await ensureAdminProfile(user.uid, user.email);
       this.adminAuthorized.set(true);
       await this.loadStudents();
@@ -324,9 +387,10 @@ export class App {
   }
 
   private async loadStudents(): Promise<void> {
+    void this.loadInstitutes();
     this.studentsLoading.set(true);
     try {
-      const { listStudentRecords } = await import('./student-records');
+      const { listStudentRecords } = await this.recordsApi();
       const records = await listStudentRecords();
       this.students.set(records);
       this.studentPage.update((page) => Math.min(page, Math.max(1, Math.ceil(records.length / this.studentPageSize))));
@@ -334,6 +398,68 @@ export class App {
       this.recordStatus.set('Unable to load records. Check Firestore setup and admin permissions.');
     } finally {
       this.studentsLoading.set(false);
+    }
+  }
+
+  protected async loadInstitutes(): Promise<void> {
+    this.institutesLoading.set(true);
+    try {
+      const { listInstitutes } = await this.recordsApi();
+      this.institutes.set(await listInstitutes());
+    } catch {
+      this.instituteStatus.set('Unable to load institutes. Check your connection and published Firestore rules.');
+    } finally {
+      this.institutesLoading.set(false);
+    }
+  }
+
+  protected editInstitute(institute: AffiliatedInstitute): void {
+    this.editingInstitute.set(institute);
+    this.instituteStatus.set('');
+  }
+
+  protected async saveAffiliatedInstitute(event: SubmitEvent): Promise<void> {
+    event.preventDefault();
+    if (this.instituteBusy()) return;
+    const form = event.currentTarget as HTMLFormElement;
+    const name = String(new FormData(form).get('instituteName') ?? '').trim();
+    if (!name || name.length > 200) {
+      this.instituteStatus.set('Enter an institute name with up to 200 characters.');
+      return;
+    }
+    if (this.institutes().some(item => item.id !== this.editingInstitute()?.id && item.name.toLowerCase() === name.toLowerCase())) {
+      this.instituteStatus.set('An institute with this name already exists.');
+      return;
+    }
+    this.instituteBusy.set(true);
+    try {
+      const { saveInstitute } = await this.recordsApi();
+      const saved = await saveInstitute(name, this.editingInstitute()?.id);
+      this.institutes.update(items => [...items.filter(item => item.id !== saved.id), saved].sort((a, b) => a.name.localeCompare(b.name)));
+      this.editingInstitute.set(null);
+      form.reset();
+      this.instituteStatus.set('Institute saved.');
+    } catch {
+      this.instituteStatus.set('Unable to save institute. Check your connection and published Firestore rules.');
+    } finally {
+      this.instituteBusy.set(false);
+    }
+  }
+
+  private async deleteAffiliatedInstitute(institute: AffiliatedInstitute): Promise<void> {
+    this.instituteBusy.set(true);
+    try {
+      const { deleteInstitute } = await this.recordsApi();
+      await deleteInstitute(institute.id);
+      this.institutes.update(items => items.filter(item => item.id !== institute.id));
+      if (this.editingInstitute()?.id === institute.id) this.editingInstitute.set(null);
+      if (this.selectedInstituteId() === institute.id && this.editingRecord()?.instituteId !== institute.id) this.selectedInstituteId.set('');
+      this.instituteStatus.set('Institute deleted. Existing student records are unchanged.');
+    } catch {
+      this.deleteError.set('Unable to delete this institute. Please try again.');
+      this.instituteStatus.set('Unable to delete institute. Please try again.');
+    } finally {
+      this.instituteBusy.set(false);
     }
   }
 }

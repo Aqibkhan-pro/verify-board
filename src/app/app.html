@@ -1,3 +1,16 @@
+<dialog #deleteDialog class="delete-modal" aria-labelledby="delete-modal-title" aria-describedby="delete-modal-description" (cancel)="cancelDelete($event)">
+  <div class="delete-modal-icon" aria-hidden="true">!</div>
+  <h2 id="delete-modal-title">Delete {{ pendingDelete()?.kind === 'student' ? 'student record' : 'institute' }}?</h2>
+  <p id="delete-modal-description">Are you sure you want to delete <strong>{{ pendingDelete()?.record?.name }}</strong>?
+    @if (pendingDelete()?.kind === 'institute') { Existing student records will keep their saved institute details. }
+    @else { This student record will be permanently removed. }
+  </p>
+  @if (deleteError()) { <p class="delete-modal-error" role="alert">{{ deleteError() }}</p> }
+  <div class="delete-modal-actions">
+    <button type="button" class="button button-outline" (click)="cancelDelete()" [disabled]="deleteBusy()" autofocus>Cancel</button>
+    <button type="button" class="button delete-modal-confirm" (click)="confirmDelete()" [disabled]="deleteBusy()">{{ deleteBusy() ? 'Deleting…' : 'Delete' }}</button>
+  </div>
+</dialog>
 <section class="skills-banner" aria-label="Prime Minister Skills Development Initiative">
   <div class="skills-banner-inner">
     <div class="skills-banner-portrait" aria-hidden="true"><img src="skills-initiative-reference.jpeg" alt="" /></div>
@@ -223,6 +236,35 @@
             </div>
           </section>
 
+          <section class="record-editor institute-manager" aria-labelledby="institute-heading">
+            <p class="form-kicker">Institute directory</p>
+            <h2 id="institute-heading">Affiliated institutes</h2>
+            <form class="record-form" (submit)="saveAffiliatedInstitute($event)">
+              <label class="wide-field">Institute name<input name="instituteName" maxlength="200" required [value]="editingInstitute()?.name ?? ''" [disabled]="instituteBusy()" /></label>
+              <div class="record-form-actions">
+                <button class="button button-primary" type="submit" [disabled]="instituteBusy() || institutesLoading()">{{ instituteBusy() ? 'Please wait…' : editingInstitute() ? 'Update institute' : 'Add institute' }}</button>
+                @if (editingInstitute()) { <button class="button button-outline" type="button" (click)="editingInstitute.set(null)" [disabled]="instituteBusy()">Cancel</button> }
+                <button class="button button-outline" type="button" (click)="loadInstitutes()" [disabled]="institutesLoading() || instituteBusy()">Refresh</button>
+              </div>
+              <p class="record-message" aria-live="polite">{{ instituteStatus() }}</p>
+            </form>
+            @if (institutesLoading()) {
+              <p class="directory-empty">Loading institutes…</p>
+            } @else {
+              <div class="record-list">
+                @for (institute of institutes(); track institute.id) {
+                  <article class="record-list-item">
+                    <div><strong>{{ institute.name }}</strong></div>
+                    <div class="record-list-actions">
+                      <button type="button" (click)="editInstitute(institute)" [disabled]="instituteBusy()">Edit</button>
+                      <button class="danger" type="button" (click)="removeInstitute(institute)" [disabled]="instituteBusy()">Delete</button>
+                    </div>
+                  </article>
+                } @empty { <p class="directory-empty">No affiliated institutes added yet.</p> }
+              </div>
+            }
+          </section>
+
           <section class="record-editor" aria-labelledby="record-editor-heading">
             <p class="form-kicker">{{ editingRecord() ? 'Update student' : 'New student record' }}</p>
             <h2 id="record-editor-heading">{{ editingRecord() ? 'Edit record' : 'Add student record' }}</h2>
@@ -235,6 +277,13 @@
               <label>Father's Name<input name="fatherName" [value]="editingRecord()?.fatherName ?? ''" /></label>
               <label>Registration No.<input name="registrationNo" [value]="editingRecord()?.registrationNo ?? ''" /></label>
               <label class="wide-field">Programme / Course<input name="programme" [value]="editingRecord()?.programme ?? ''" required /></label>
+              <label class="wide-field">Affiliated institute (optional)
+                <select name="instituteId" [ngModel]="selectedInstituteId()" (ngModelChange)="selectedInstituteId.set($event)" [ngModelOptions]="{standalone: true}" [disabled]="institutesLoading() || recordBusy()">
+                  <option value="">No institute selected</option>
+                  @if (missingInstitute(); as previous) { <option [value]="previous.instituteId">{{ previous.instituteName || 'Previous institute' }} (previously saved)</option> }
+                  @for (institute of institutes(); track institute.id) { <option [value]="institute.id">{{ institute.name }}</option> }
+                </select>
+              </label>
               <label>Session<input name="session" [value]="editingRecord()?.session ?? ''" placeholder="Year ending 2023" /></label>
               <label>Grade<input name="grade" [value]="editingRecord()?.grade ?? ''" placeholder="A" /></label>
               <label>Total Marks<input name="totalMarks" type="number" min="1" [value]="editingRecord()?.totalMarks ?? ''" required /></label>
@@ -255,7 +304,7 @@
               <div class="record-list">
                 @for (record of pagedStudents(); track record.id) {
                   <article class="record-list-item">
-                    <div><strong>{{ record.name }}</strong><span>{{ record.rollNo }} &middot; {{ record.passingYear }} &middot; {{ record.programme }}</span></div>
+                    <div><strong>{{ record.name }}</strong><span>{{ record.rollNo }} &middot; {{ record.passingYear }} &middot; {{ record.programme }}</span>@if (record.instituteName) { <span>{{ record.instituteName }}</span> }</div>
                     <div class="record-list-actions"><button type="button" (click)="editStudent(record)">Edit</button><button class="danger" type="button" (click)="removeStudent(record)">Delete</button></div>
                   </article>
                 }
