@@ -2,6 +2,13 @@ import { Component, computed, signal, ElementRef, viewChild } from '@angular/cor
 import { FormsModule } from '@angular/forms';
 import type { AffiliatedInstitute, StudentRecord, StudentRecordInput } from './student-records';
 
+const isAdminHash = (hash: string) => hash === '#admin' || hash === '#admin-institutes';
+
+function matchInstitutes(list: AffiliatedInstitute[], search: string): AffiliatedInstitute[] {
+  const query = search.trim().toLowerCase();
+  return query ? list.filter(item => item.name.toLowerCase().includes(query)) : list;
+}
+
 @Component({
   selector: 'app-root',
   imports: [FormsModule],
@@ -9,6 +16,7 @@ import type { AffiliatedInstitute, StudentRecord, StudentRecordInput } from './s
 })
 export class App {
   private readonly deleteDialog = viewChild<ElementRef<HTMLDialogElement>>('deleteDialog');
+  private readonly instituteNameInput = viewChild<ElementRef<HTMLInputElement>>('instituteNameInput');
   protected readonly pendingDelete = signal<{ kind: 'student'; record: StudentRecord } | { kind: 'institute'; record: AffiliatedInstitute } | null>(null);
   protected readonly deleteBusy = signal(false);
   protected readonly deleteError = signal('');
@@ -53,7 +61,9 @@ export class App {
   protected readonly menuOpen = signal(false);
   protected readonly verificationPage = signal(window.location.hash === '#verification');
   protected readonly resultPage = signal(window.location.hash === '#result');
-  protected readonly adminPage = signal(window.location.hash === '#admin');
+  protected readonly adminPage = signal(isAdminHash(window.location.hash));
+  protected readonly adminInstitutesView = signal(window.location.hash === '#admin-institutes');
+  protected readonly institutesPage = signal(window.location.hash === '#institutes');
   protected readonly verificationStatus = signal('');
   protected readonly activeRecord = signal<StudentRecord | null>(null);
   protected readonly searchBusy = signal(false);
@@ -68,6 +78,11 @@ export class App {
   protected readonly editingRecord = signal<StudentRecord | null>(null);
   protected readonly institutes = signal<AffiliatedInstitute[]>([]);
   protected readonly institutesLoading = signal(false);
+  protected readonly institutesLoadError = signal(false);
+  protected readonly instituteSearch = signal('');
+  protected readonly filteredInstitutes = computed(() => matchInstitutes(this.institutes(), this.instituteSearch()));
+  protected readonly adminInstituteSearch = signal('');
+  protected readonly adminFilteredInstitutes = computed(() => matchInstitutes(this.institutes(), this.adminInstituteSearch()));
   protected readonly instituteBusy = signal(false);
   protected readonly instituteStatus = signal('');
   protected readonly editingInstitute = signal<AffiliatedInstitute | null>(null);
@@ -97,13 +112,14 @@ export class App {
   protected readonly currentYear = new Date().getFullYear();
 
   protected readonly navItems = [
-    { label: 'Home', href: '#home', verification: false, admin: false },
-    { label: 'Academic Scope', href: '#academic-scope', verification: false, admin: false },
-    { label: 'Verification', href: '#verification', verification: true, admin: false },
-    { label: 'About Us', href: '#academic-scope', verification: false, admin: false },
-    { label: 'Programs', href: '#programs', verification: false, admin: false },
-    { label: 'Contact', href: '#contact', verification: false, admin: false },
-    { label: 'Login', href: '#admin', verification: false, admin: true }
+    { label: 'Home', href: '#home', verification: false, admin: false, institutes: false },
+    { label: 'Academic Scope', href: '#academic-scope', verification: false, admin: false, institutes: false },
+    { label: 'Verification', href: '#verification', verification: true, admin: false, institutes: false },
+    { label: 'About Us', href: '#academic-scope', verification: false, admin: false, institutes: false },
+    { label: 'Programs', href: '#programs', verification: false, admin: false, institutes: false },
+    { label: 'Affiliated Institutes', href: '#institutes', verification: false, admin: false, institutes: true },
+    { label: 'Contact', href: '#contact', verification: false, admin: false, institutes: false },
+    { label: 'Login', href: '#admin', verification: false, admin: true, institutes: false }
   ];
 
   protected readonly programs = [
@@ -117,16 +133,26 @@ export class App {
 
   constructor() {
     window.addEventListener('hashchange', () => {
-      this.verificationPage.set(window.location.hash === '#verification');
-      this.resultPage.set(window.location.hash === '#result');
-      this.adminPage.set(window.location.hash === '#admin');
+      const hash = window.location.hash;
+      const wasAdmin = this.adminPage();
+      const wasInstitutes = this.institutesPage();
+      this.verificationPage.set(hash === '#verification');
+      this.resultPage.set(hash === '#result');
+      this.adminPage.set(isAdminHash(hash));
+      this.adminInstitutesView.set(hash === '#admin-institutes');
+      this.institutesPage.set(hash === '#institutes');
 
-      if (window.location.hash === '#admin') void this.loadAdminSession();
+      // The open* handlers switch the page before changing the hash and load
+      // their own data, so only load here when arriving via back/forward or a
+      // typed URL. Switching admin tabs therefore does not refetch everything.
+      if (this.adminPage() && !wasAdmin) void this.loadAdminSession();
+      if (this.institutesPage() && !wasInstitutes) void this.loadInstitutes();
     });
 
     // A browser refresh does not emit hashchange, so restore the persisted
     // Firebase session when the Login page is the initial route.
     if (this.adminPage()) void this.loadAdminSession();
+    if (this.institutesPage()) void this.loadInstitutes();
   }
 
   protected toggleMenu(): void { this.menuOpen.update(open => !open); }
@@ -137,6 +163,7 @@ export class App {
     this.menuOpen.set(false);
     this.resultPage.set(false);
     this.adminPage.set(false);
+    this.institutesPage.set(false);
     this.activeRecord.set(null);
     this.verificationStatus.set('');
     this.verificationPage.set(true);
@@ -221,10 +248,31 @@ export class App {
     this.menuOpen.set(false);
     this.resultPage.set(false);
     this.verificationPage.set(false);
+    this.institutesPage.set(false);
     this.adminPage.set(true);
+    this.adminInstitutesView.set(false);
     this.authStatus.set('');
     void this.loadAdminSession();
     window.location.hash = 'admin';
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  protected setAdminView(event: Event, institutes: boolean): void {
+    event.preventDefault();
+    this.adminInstitutesView.set(institutes);
+    window.location.hash = institutes ? 'admin-institutes' : 'admin';
+  }
+
+  protected openInstitutes(event: Event): void {
+    event.preventDefault();
+    this.menuOpen.set(false);
+    this.resultPage.set(false);
+    this.verificationPage.set(false);
+    this.adminPage.set(false);
+    this.institutesPage.set(true);
+    this.instituteSearch.set('');
+    void this.loadInstitutes();
+    window.location.hash = 'institutes';
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
@@ -275,6 +323,7 @@ export class App {
     this.students.set([]);
     this.institutes.set([]);
     this.editingInstitute.set(null);
+    this.adminInstituteSearch.set('');
     this.selectedInstituteId.set('');
     this.editingRecord.set(null);
     this.authStatus.set('You have been signed out.');
@@ -403,10 +452,12 @@ export class App {
 
   protected async loadInstitutes(): Promise<void> {
     this.institutesLoading.set(true);
+    this.institutesLoadError.set(false);
     try {
       const { listInstitutes } = await this.recordsApi();
       this.institutes.set(await listInstitutes());
     } catch {
+      this.institutesLoadError.set(true);
       this.instituteStatus.set('Unable to load institutes. Check your connection and published Firestore rules.');
     } finally {
       this.institutesLoading.set(false);
@@ -416,6 +467,8 @@ export class App {
   protected editInstitute(institute: AffiliatedInstitute): void {
     this.editingInstitute.set(institute);
     this.instituteStatus.set('');
+    // The list can be long, so bring the edit form into view.
+    this.instituteNameInput()?.nativeElement.focus();
   }
 
   protected async saveAffiliatedInstitute(event: SubmitEvent): Promise<void> {

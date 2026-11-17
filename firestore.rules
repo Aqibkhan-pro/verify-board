@@ -22,7 +22,10 @@ service cloud.firestore {
     }
 
     match /affiliatedInstitutes/{instituteId} {
-      allow read, delete: if isAdmin();
+      // The public "Affiliated Institutes" page lists every institute name,
+      // so anyone may read; only admins may change the directory.
+      allow read: if true;
+      allow delete: if isAdmin();
       allow create, update: if isAdmin()
         && request.resource.data.name is string
         && request.resource.data.name.size() > 0

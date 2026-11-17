@@ -2,7 +2,7 @@
 
 ## Affiliated institutes
 
-Publish the updated `firestore.rules` in the Firebase Console before using institute management. The new `affiliatedInstitutes` collection is created automatically when the first institute is saved; only admins can access it.
+Publish the updated `firestore.rules` in the Firebase Console before using institute management. The new `affiliatedInstitutes` collection is created automatically when the first institute is saved. Anyone can read it (the public **Affiliated Institutes** page at `/#institutes` lists every institute name); only admins can add, rename or delete institutes.
 
 Admins can add, rename and delete institutes. Student forms allow an optional institute selection. Student records store the institute ID and a name snapshot, so deleting or renaming an institute does not rewrite historical records. Editing and saving a student with an existing institute updates its saved name to the current directory name.
 

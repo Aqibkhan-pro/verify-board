@@ -66,7 +66,9 @@ describe('App', () => {
 
   it('adds, updates and deletes institutes', async () => {
     const { fixture, app, element } = adminFixture();
-    const form = element.querySelector('.institute-manager form') as HTMLFormElement;
+    app.adminInstitutesView.set(true);
+    fixture.detectChanges();
+    const form = element.querySelector('.institute-form') as HTMLFormElement;
     const input = form.elements.namedItem('instituteName') as HTMLInputElement;
     input.value = 'New College';
     await app.saveAffiliatedInstitute({ preventDefault() {}, currentTarget: form });
@@ -85,12 +87,65 @@ describe('App', () => {
     fixture.destroy();
   });
 
+  it('shows institutes on a separate admin page with search', () => {
+    const { fixture, app, element } = adminFixture();
+    expect(element.querySelector('.institute-form')).toBeNull();
+    const tab = Array.from(element.querySelectorAll<HTMLAnchorElement>('.admin-tabs a'))
+      .find(link => link.textContent?.includes('Affiliated institutes'))!;
+    tab.click();
+    app.institutes.set([
+      { id: 'a', name: 'Alpha Technical Institute' },
+      { id: 'b', name: 'Beta Polytechnic College' }
+    ]);
+    fixture.detectChanges();
+    expect(element.querySelector('.institute-form')).toBeTruthy();
+    expect(element.querySelector('select[name="instituteId"]')).toBeNull();
+    const names = () => Array.from(element.querySelectorAll('.institute-manager .record-list-item strong')).map(item => item.textContent);
+    expect(names()).toEqual(['Alpha Technical Institute', 'Beta Polytechnic College']);
+    app.adminInstituteSearch.set('POLY');
+    fixture.detectChanges();
+    expect(names()).toEqual(['Beta Polytechnic College']);
+    app.adminInstituteSearch.set('missing');
+    fixture.detectChanges();
+    expect(element.querySelector('.institute-manager')?.textContent).toContain('No institutes match');
+    window.location.hash = '';
+    fixture.destroy();
+  });
+
   it('cancels institute deletion without deleting data', () => {
     const { fixture, app } = adminFixture();
     app.removeInstitute({ id: 'institute-1', name: 'Technical College' });
     app.cancelDelete();
     expect(app.pendingDelete()).toBeNull();
     expect(deleteInstitute).not.toHaveBeenCalled();
+    fixture.destroy();
+  });
+
+  it('opens the affiliated institutes page from the navbar and lists institutes', async () => {
+    const fixture = TestBed.createComponent(App);
+    const app = fixture.componentInstance as any;
+    const listInstitutes = vi.fn(async () => [
+      { id: 'a', name: 'Alpha Technical Institute' },
+      { id: 'b', name: 'Beta Polytechnic College' }
+    ]);
+    vi.spyOn(app, 'recordsApi').mockResolvedValue({ listInstitutes });
+    vi.spyOn(window, 'scrollTo').mockImplementation(() => {});
+    fixture.detectChanges();
+    const element = fixture.nativeElement as HTMLElement;
+    const navLink = Array.from(element.querySelectorAll<HTMLAnchorElement>('.main-nav a'))
+      .find(link => link.textContent?.trim() === 'Affiliated Institutes')!;
+    expect(navLink).toBeTruthy();
+    navLink.click();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(listInstitutes).toHaveBeenCalled();
+    expect(element.querySelector('h1')?.textContent).toContain('Affiliated');
+    const items = Array.from(element.querySelectorAll('.institute-list li')).map(item => item.textContent?.trim());
+    expect(items).toEqual(['1Alpha Technical Institute', '2Beta Polytechnic College']);
+    app.instituteSearch.set('beta');
+    fixture.detectChanges();
+    expect(element.querySelectorAll('.institute-list li').length).toBe(1);
+    window.location.hash = '';
     fixture.destroy();
   });
 

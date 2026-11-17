@@ -36,6 +36,8 @@
         @for (item of navItems; track item.href) {
           @if (item.admin) {
             <a [href]="item.href" (click)="openAdmin($event)">{{ item.label }}</a>
+          } @else if (item.institutes) {
+            <a [href]="item.href" (click)="openInstitutes($event)">{{ item.label }}</a>
           } @else if (item.verification) {
             <a class="active" [href]="item.href" (click)="openVerification($event)">{{ item.label }}</a>
           } @else {
@@ -118,6 +120,8 @@
         @for (item of navItems; track item.href) {
           @if (item.admin) {
             <a [href]="item.href" (click)="openAdmin($event)">{{ item.label }}</a>
+          } @else if (item.institutes) {
+            <a [href]="item.href" (click)="openInstitutes($event)">{{ item.label }}</a>
           } @else if (item.verification) {
             <a class="active" [href]="item.href" (click)="openVerification($event)">{{ item.label }}</a>
           } @else {
@@ -190,6 +194,8 @@
         @for (item of navItems; track item.href) {
           @if (item.admin) {
             <a class="active" [href]="item.href" (click)="openAdmin($event)">{{ item.label }}</a>
+          } @else if (item.institutes) {
+            <a [href]="item.href" (click)="openInstitutes($event)">{{ item.label }}</a>
           } @else if (item.verification) {
             <a [href]="item.href" (click)="openVerification($event)">{{ item.label }}</a>
           } @else {
@@ -213,10 +219,66 @@
       @if (signedInEmail()) {
         @if (adminAuthorized()) {
         <div class="container dashboard-heading">
-          <div><p class="eyebrow">Administrator workspace</p><h2>Manage student records</h2><p>Signed in as {{ signedInEmail() }}</p></div>
+          <div><p class="eyebrow">Administrator workspace</p><h2>{{ adminInstitutesView() ? 'Manage affiliated institutes' : 'Manage student records' }}</h2><p>Signed in as {{ signedInEmail() }}</p></div>
           <button class="button button-outline" type="button" (click)="signOutAdmin()">Sign out</button>
         </div>
 
+        <nav class="container admin-tabs" aria-label="Administrator sections">
+          <a href="#admin" [class.active]="!adminInstitutesView()" [attr.aria-current]="adminInstitutesView() ? null : 'page'" (click)="setAdminView($event, false)">Student records <span>{{ students().length }}</span></a>
+          <a href="#admin-institutes" [class.active]="adminInstitutesView()" [attr.aria-current]="adminInstitutesView() ? 'page' : null" (click)="setAdminView($event, true)">Affiliated institutes <span>{{ institutes().length }}</span></a>
+        </nav>
+
+        @if (adminInstitutesView()) {
+        <div class="container dashboard-grid institutes-admin-grid">
+          <section class="record-editor" aria-labelledby="institute-editor-heading">
+            <p class="form-kicker">{{ editingInstitute() ? 'Update institute' : 'New institute' }}</p>
+            <h2 id="institute-editor-heading">{{ editingInstitute() ? 'Edit institute' : 'Add institute' }}</h2>
+            <p class="form-copy">Institutes listed here appear on the public Affiliated Institutes page and in the student record form.</p>
+            <form class="record-form institute-form" (submit)="saveAffiliatedInstitute($event)">
+              <label class="wide-field">Institute name<input #instituteNameInput name="instituteName" maxlength="200" required [value]="editingInstitute()?.name ?? ''" [disabled]="instituteBusy()" /></label>
+              <p class="record-message" aria-live="polite">{{ instituteStatus() }}</p>
+              <div class="record-form-actions">
+                <button class="button button-primary" type="submit" [disabled]="instituteBusy() || institutesLoading()">{{ instituteBusy() ? 'Please wait…' : editingInstitute() ? 'Update institute' : 'Add institute' }}</button>
+                @if (editingInstitute()) { <button class="button button-outline" type="button" (click)="editingInstitute.set(null)" [disabled]="instituteBusy()">Cancel</button> }
+              </div>
+            </form>
+          </section>
+
+          <section class="record-directory institute-manager" aria-labelledby="institute-heading">
+            <div class="record-directory-heading">
+              <div><p class="form-kicker">Institute directory</p><h2 id="institute-heading">Affiliated institutes</h2></div>
+              <span>{{ adminInstituteSearch().trim() ? adminFilteredInstitutes().length + ' of ' + institutes().length : institutes().length + ' total' }}</span>
+            </div>
+            <div class="institute-toolbar">
+              <label class="institute-search">Search institutes
+                <input type="search" name="adminInstituteSearch" placeholder="Type an institute name" autocomplete="off" [ngModel]="adminInstituteSearch()" (ngModelChange)="adminInstituteSearch.set($event)" [ngModelOptions]="{standalone: true}" />
+              </label>
+              <button class="button button-outline" type="button" (click)="loadInstitutes()" [disabled]="institutesLoading() || instituteBusy()">Refresh</button>
+            </div>
+            @if (institutesLoading()) {
+              <p class="directory-empty">Loading institutes…</p>
+            } @else if (institutesLoadError()) {
+              <p class="directory-empty">Unable to load institutes. Check your connection and published Firestore rules, then refresh.</p>
+            } @else if (adminFilteredInstitutes().length) {
+              <div class="record-list">
+                @for (institute of adminFilteredInstitutes(); track institute.id) {
+                  <article class="record-list-item" [class.is-editing]="editingInstitute()?.id === institute.id">
+                    <div><strong>{{ institute.name }}</strong></div>
+                    <div class="record-list-actions">
+                      <button type="button" (click)="editInstitute(institute)" [disabled]="instituteBusy()">Edit</button>
+                      <button class="danger" type="button" (click)="removeInstitute(institute)" [disabled]="instituteBusy()">Delete</button>
+                    </div>
+                  </article>
+                }
+              </div>
+            } @else if (institutes().length) {
+              <p class="directory-empty">No institutes match “{{ adminInstituteSearch().trim() }}”.</p>
+            } @else {
+              <p class="directory-empty">No affiliated institutes added yet. Add your first institute using the form.</p>
+            }
+          </section>
+        </div>
+        } @else {
         <div class="container dashboard-grid">
           <section class="verification-qr-card" aria-labelledby="verification-qr-heading">
             <div>
@@ -234,35 +296,6 @@
               <button class="button button-primary" type="button" (click)="downloadVerificationQr()" [disabled]="!qrCodeUrl()">Download QR <span>&darr;</span></button>
               @if (qrCodeStatus()) { <p class="qr-error">{{ qrCodeStatus() }}</p> }
             </div>
-          </section>
-
-          <section class="record-editor institute-manager" aria-labelledby="institute-heading">
-            <p class="form-kicker">Institute directory</p>
-            <h2 id="institute-heading">Affiliated institutes</h2>
-            <form class="record-form" (submit)="saveAffiliatedInstitute($event)">
-              <label class="wide-field">Institute name<input name="instituteName" maxlength="200" required [value]="editingInstitute()?.name ?? ''" [disabled]="instituteBusy()" /></label>
-              <div class="record-form-actions">
-                <button class="button button-primary" type="submit" [disabled]="instituteBusy() || institutesLoading()">{{ instituteBusy() ? 'Please wait…' : editingInstitute() ? 'Update institute' : 'Add institute' }}</button>
-                @if (editingInstitute()) { <button class="button button-outline" type="button" (click)="editingInstitute.set(null)" [disabled]="instituteBusy()">Cancel</button> }
-                <button class="button button-outline" type="button" (click)="loadInstitutes()" [disabled]="institutesLoading() || instituteBusy()">Refresh</button>
-              </div>
-              <p class="record-message" aria-live="polite">{{ instituteStatus() }}</p>
-            </form>
-            @if (institutesLoading()) {
-              <p class="directory-empty">Loading institutes…</p>
-            } @else {
-              <div class="record-list">
-                @for (institute of institutes(); track institute.id) {
-                  <article class="record-list-item">
-                    <div><strong>{{ institute.name }}</strong></div>
-                    <div class="record-list-actions">
-                      <button type="button" (click)="editInstitute(institute)" [disabled]="instituteBusy()">Edit</button>
-                      <button class="danger" type="button" (click)="removeInstitute(institute)" [disabled]="instituteBusy()">Delete</button>
-                    </div>
-                  </article>
-                } @empty { <p class="directory-empty">No affiliated institutes added yet.</p> }
-              </div>
-            }
           </section>
 
           <section class="record-editor" aria-labelledby="record-editor-heading">
@@ -324,6 +357,7 @@
             }
           </section>
         </div>
+        }
         } @else {
           <div class="container authorization-notice">
             <span>!</span>
@@ -361,6 +395,83 @@
     <div class="container footer-top"><a class="brand" href="#home" aria-label="Vocational and Technical Skills Council home"><img class="brand-logo" src="vtsc-logo.jpeg" alt="Vocational and Technical Skills Council (VTSC) logo" /></a><p>Standards that turn technical learning into opportunity.</p></div>
     <div class="container footer-bottom"><span>&copy; {{ currentYear }} Vocational and Technical Skills Council. All rights reserved.</span><div><a href="#academic-scope">Academic scope</a><a href="#verification" (click)="openVerification($event)">Verification</a><a href="#admin" (click)="openAdmin($event)">Login</a></div></div>
   </footer>
+} @else if (institutesPage()) {
+  <a class="skip-link" href="#main-content">Skip to content</a>
+
+  <header class="site-header">
+    <div class="container header-inner">
+      <a class="brand" href="#home" aria-label="Vocational and Technical Skills Council home">
+        <img class="brand-logo" src="vtsc-logo.jpeg" alt="Vocational and Technical Skills Council (VTSC) logo" />
+      </a>
+      <div class="header-meta"><span>National Standards Authority</span><strong>Technical &amp; Vocational Education</strong></div>
+      <button class="menu-toggle" type="button" (click)="toggleMenu()" [attr.aria-expanded]="menuOpen()" aria-label="Toggle navigation"><span></span><span></span><span></span></button>
+    </div>
+    <nav class="main-nav" [class.open]="menuOpen()" aria-label="Primary navigation">
+      <div class="container nav-inner">
+        @for (item of navItems; track item.href) {
+          @if (item.admin) {
+            <a [href]="item.href" (click)="openAdmin($event)">{{ item.label }}</a>
+          } @else if (item.institutes) {
+            <a class="active" [href]="item.href" (click)="openInstitutes($event)" aria-current="page">{{ item.label }}</a>
+          } @else if (item.verification) {
+            <a [href]="item.href" (click)="openVerification($event)">{{ item.label }}</a>
+          } @else {
+            <a [href]="item.href" (click)="closeMenu()">{{ item.label }}</a>
+          }
+        }
+      </div>
+    </nav>
+  </header>
+
+  <main class="institutes-page" id="main-content">
+    <section class="admin-hero">
+      <div class="container">
+        <p class="eyebrow">Institute directory</p>
+        <h1>Affiliated <em>institutes.</em></h1>
+        <p>Institutes affiliated with the Vocational and Technical Skills Council for technical and vocational education.</p>
+      </div>
+    </section>
+
+    <section class="institutes-section">
+      <div class="container">
+        <section class="record-directory" aria-labelledby="institutes-list-heading">
+          <div class="record-directory-heading">
+            <div><p class="form-kicker">Official list</p><h2 id="institutes-list-heading">Affiliated institutes</h2></div>
+            @if (!institutesLoading() && !institutesLoadError()) { <span>{{ institutes().length }} total</span> }
+          </div>
+
+          @if (institutesLoading()) {
+            <p class="directory-empty" aria-live="polite">Loading institutes…</p>
+          } @else if (institutesLoadError()) {
+            <div class="institutes-error" role="alert">
+              <p class="directory-empty">The institute list could not be loaded right now. Please check your connection and try again.</p>
+              <button class="button button-outline" type="button" (click)="loadInstitutes()">Try again</button>
+            </div>
+          } @else if (institutes().length) {
+            <label class="institute-search">Search institutes
+              <input type="search" placeholder="Type an institute name" autocomplete="off" [ngModel]="instituteSearch()" (ngModelChange)="instituteSearch.set($event)" [ngModelOptions]="{standalone: true}" />
+            </label>
+            @if (filteredInstitutes().length) {
+              <ol class="institute-list">
+                @for (institute of filteredInstitutes(); track institute.id; let i = $index) {
+                  <li><span class="institute-index" aria-hidden="true">{{ i + 1 }}</span><strong>{{ institute.name }}</strong></li>
+                }
+              </ol>
+            } @else {
+              <p class="directory-empty">No institutes match “{{ instituteSearch().trim() }}”.</p>
+            }
+          } @else {
+            <p class="directory-empty">No affiliated institutes have been listed yet.</p>
+          }
+        </section>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container footer-top"><a class="brand" href="#home" aria-label="Vocational and Technical Skills Council home"><img class="brand-logo" src="vtsc-logo.jpeg" alt="Vocational and Technical Skills Council (VTSC) logo" /></a><p>Standards that turn technical learning into opportunity.</p></div>
+    <div class="container footer-bottom"><span>&copy; {{ currentYear }} Vocational and Technical Skills Council. All rights reserved.</span><div><a href="#academic-scope">Academic scope</a><a href="#verification" (click)="openVerification($event)">Verification</a><a href="#contact">Contact</a></div></div>
+  </footer>
 } @else {
   <a class="skip-link" href="#main-content">Skip to content</a>
 
@@ -378,6 +489,8 @@
         @for (item of navItems; track item.href) {
           @if (item.admin) {
             <a [href]="item.href" (click)="openAdmin($event)">{{ item.label }}</a>
+          } @else if (item.institutes) {
+            <a [href]="item.href" (click)="openInstitutes($event)">{{ item.label }}</a>
           } @else if (item.verification) {
             <a [href]="item.href" (click)="openVerification($event)">{{ item.label }}</a>
           } @else {

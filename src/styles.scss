@@ -315,7 +315,7 @@ body {
   .brand-copy small { max-width: 190px; font-size: .59rem; }
   .menu-toggle { display: block; }
   .main-nav { max-height: 0; overflow: hidden; transition: max-height .25s; }
-  .main-nav.open { max-height: 300px; }
+  .main-nav.open { max-height: 380px; }
   .nav-inner { display: grid; width: auto; height: auto; margin: 0; padding: 9px 16px; }
   .main-nav a { padding: 9px 3px; border-bottom: 0; border-left: 3px solid transparent; }
   .main-nav a.active { border-left-color: var(--green); }
@@ -413,7 +413,6 @@ body {
 }
 @media print { .skills-banner { display: none; } }
 
-.institute-manager { grid-column: 1 / -1; }
 .delete-modal { width: min(440px, calc(100% - 32px)); margin: auto; padding: 28px; border: 0; border-radius: 18px; color: var(--ink); background: #fff; box-shadow: 0 24px 80px #0003; }
 .delete-modal::backdrop { background: #10261dcc; backdrop-filter: blur(4px); }
 .delete-modal-icon { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 50%; background: #fff0ee; color: #b42318; font-size: 25px; font-weight: 700; }
@@ -424,4 +423,33 @@ body {
 .delete-modal-confirm:hover { background: #912018; }
 .delete-modal button:disabled { opacity: .6; cursor: wait; }
 .delete-modal .delete-modal-error { color: #b42318; }
-.institute-manager .record-list { max-height: 320px; overflow-y: auto; }
+
+.admin-tabs { display: flex; gap: 4px; margin-bottom: 24px; overflow-x: auto; border-bottom: 1px solid var(--line); }
+.admin-tabs a { display: inline-flex; align-items: center; gap: 8px; margin-bottom: -1px; padding: 10px 14px 11px; border-bottom: 3px solid transparent; color: #527057; font-size: .88rem; font-weight: 700; white-space: nowrap; }
+.admin-tabs a:hover, .admin-tabs a.active { border-color: var(--green); color: var(--dark); }
+.admin-tabs a span { padding: 1px 8px; border-radius: 20px; background: #e9f4e8; color: var(--dark); font-size: .72rem; }
+.institutes-admin-grid { grid-template-columns: minmax(0, .8fr) minmax(0, 1.2fr); }
+.institutes-admin-grid > .record-editor { position: sticky; top: 168px; }
+.institute-form input { scroll-margin-top: 190px; }
+.institute-toolbar { display: flex; align-items: end; gap: 10px; margin-top: 18px; }
+.institute-toolbar .institute-search { flex: 1; margin: 0; }
+.institute-toolbar .institute-search input { max-width: none; }
+.institute-toolbar .button { padding-block: 11px; }
+.institute-toolbar .button:disabled { cursor: wait; opacity: .68; }
+.record-list-item.is-editing { margin-inline: -12px; padding-inline: 12px; border-radius: 8px; background: #f0f7f0; }
+
+.institutes-page { min-height: 640px; background: #f6fbf7; }
+.institutes-section { padding: 44px 0 74px; }
+.institute-search { display: block; margin-top: 20px; color: #2b4a31; font-size: .8rem; font-weight: 700; }
+.institute-search input { display: block; width: 100%; max-width: 420px; margin-top: 6px; padding: 11px 12px; border: 1px solid #c9dccb; border-radius: 7px; outline: none; background: #fff; color: var(--ink); font: 500 .93rem "DM Sans", sans-serif; }
+.institute-search input:focus { border-color: var(--green); box-shadow: 0 0 0 3px rgba(54,125,57,.12); }
+.institute-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 36px; margin: 12px 0 0; padding: 0; list-style: none; }
+.institute-list li { display: flex; align-items: center; gap: 14px; padding: 14px 0; border-bottom: 1px solid #e2ece3; }
+.institute-index { display: grid; place-items: center; flex: 0 0 auto; min-width: 32px; height: 32px; padding: 0 6px; border-radius: 16px; background: #eaf4eb; color: var(--dark); font: 700 .78rem "Plus Jakarta Sans", sans-serif; }
+.institute-list strong { color: var(--forest); font-size: .95rem; font-weight: 600; overflow-wrap: anywhere; }
+.institutes-error .button { margin-top: 14px; }
+@media (max-width: 850px) {
+  .institute-list, .institutes-admin-grid { grid-template-columns: 1fr; }
+  .institutes-admin-grid > .record-editor { position: static; }
+}
+@media (max-width: 560px) { .institutes-section { padding: 25px 0 56px; } }
